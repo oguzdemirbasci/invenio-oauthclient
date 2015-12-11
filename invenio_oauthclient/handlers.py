@@ -112,7 +112,7 @@ def token_setter(remote, token, secret='', token_type='', extra_data=None):
     session[token_session_key(remote.name)] = (token, secret)
 
     # Save token if used is authenticated
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         uid = current_user.get_id()
         cid = remote.consumer_key
 
@@ -140,7 +140,7 @@ def token_getter(remote, token=''):
     """
     session_key = token_session_key(remote.name)
 
-    if session_key not in session and current_user.is_authenticated():
+    if session_key not in session and current_user.is_authenticated:
         # Fetch key from token store if user is authenticated, and the key
         # isn't already cached in the session.
         remote_token = RemoteToken.get(
@@ -215,7 +215,7 @@ def authorized_signup_handler(resp, remote, *args, **kwargs):
 
     # Sign-in/up user
     # ---------------
-    if not current_user.is_authenticated():
+    if not current_user.is_authenticated:
         account_info = handlers['info'](resp)
 
         user = oauth_get_user(
@@ -280,7 +280,7 @@ def disconnect_handler(remote, *args, **kwargs):
     wish to extend this module to perform clean-up in the remote service
     before removing the link (e.g. removing install webhooks).
     """
-    if not current_user.is_authenticated():
+    if not current_user.is_authenticated:
         return current_app.login_manager.unauthorized()
 
     account = RemoteAccount.get(
@@ -296,7 +296,7 @@ def disconnect_handler(remote, *args, **kwargs):
 def signup_handler(remote, *args, **kwargs):
     """Handle extra signup information."""
     # User already authenticated so move on
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         return redirect("/")
 
     # Retrieve token from session
