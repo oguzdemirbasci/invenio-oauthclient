@@ -30,7 +30,7 @@ from ..signals import account_info_received, account_setup_committed, \
     account_setup_received
 from ..utils import create_csrf_disabled_registrationform, \
     create_registrationform, fill_form, oauth_authenticate, oauth_get_user, \
-    oauth_register, rest_oauth_register
+    oauth_register, rest_oauth_register, obj_or_import_string
 from .utils import get_session_next_url, response_token_setter, token_getter, \
     token_session_key, token_setter
 
@@ -45,16 +45,15 @@ def response_handler_postmessage(remote, url, payload=dict()):
 
 def default_response_handler(remote, url, payload=dict()):
     """Default response handler."""
+    default_handler = current_app.config.get(
+        "OAUTHCLIENT_REST_DEFAULT_RESPONSE_HANDLER"
+    )
+    if default_handler:
+        return obj_or_import_string(default_handler)(remote, url, payload)
     if payload:
         return redirect(
             "{url}?{payload}".format(url=url, payload=urlencode(payload)))
     return redirect(url)
-
-
-def response_handler(remote, url, payload=dict()):
-    """Handle oauthclient rest response."""
-    return current_oauthclient.response_handler[remote.name](
-        url, payload)
 
 
 #
@@ -67,47 +66,68 @@ def oauth_error_handler(f):
         # OAuthErrors should not happen, so they are not caught here. Hence
         # they will result in a 500 Internal Server Error which is what we
         # are interested in.
-        remote_app_config = current_app.config['OAUTHCLIENT_REST_REMOTE_APPS'][
-            remote.name]
         try:
+            remote_app_config = current_app.config['OAUTHCLIENT_REST_REMOTE_APPS'][remote.name]
             return f(resp, remote, *args, **kwargs)
         except OAuthClientError as e:
             current_app.logger.warning(e.message, exc_info=True)
-            return oauth2_handle_error(
+            default_oauth_error_handler = (
+                current_app.config["OAUTHCLIENT_REST_DEFAULT_ERROR_HANDLER"]
+                or oauth2_handle_error
+            )
+            return default_oauth_error_handler(
                 e.remote, e.response, e.code, e.uri, e.description
             )
         except OAuthCERNRejectedAccountError as e:
             current_app.logger.warning(e.message, exc_info=True)
             return response_handler(
                 remote,
-                remote_app_config['error_redirect_url'],
-                payload=dict(
-                    message='CERN account not allowed.',
-                    code=400)
-                )
+                remote_app_config["error_redirect_url"],
+                payload=dict(message="CERN account not allowed.", code=400),
+            )
         except OAuthRejectedRequestError:
             return response_handler(
                 remote,
-                remote_app_config['error_redirect_url'],
+                remote_app_config["error_redirect_url"],
                 payload=dict(
-                    message='You rejected the authentication request.',
-                    code=400)
-                )
+                    message="You rejected the authentication request.", code=400
+                ),
+            )
         except AlreadyLinkedError:
-            msg = 'External service is already linked to another account.'
+            msg = "External service is already linked to another account."
             return response_handler(
                 remote,
-                remote_app_config['error_redirect_url'],
-                payload=dict(
-                    message=msg,
-                    code=400)
-                )
+                remote_app_config["error_redirect_url"],
+                payload=dict(message=msg, code=400),
+            )
     return inner
 
+def oauth_response_error_handler(f):
+    """Decorator to handle exceptions."""
+    @wraps(f)
+    def inner(remote, url, payload=None):
+        try:
+            return f(remote, url, payload)
+        except AttributeError as e:
+            current_app.logger.warning(e, exc_info=True)
+            default_oauth_error_handler = (
+                current_app.config["OAUTHCLIENT_REST_DEFAULT_ERROR_HANDLER"]
+                or oauth2_handle_error
+            )
+            return default_oauth_error_handler(remote, None, 500, url, str(e))
+
+    return inner
 
 #
 # Handlers
 #
+
+@oauth_response_error_handler
+def response_handler(remote, url, payload=None, *args, **kwargs):
+    """Handle oauthclient rest response."""
+    return current_oauthclient.response_handler[remote.name](
+        url, payload)
+
 @oauth_error_handler
 def authorized_default_handler(resp, remote, *args, **kwargs):
     """Store access token in session.
@@ -382,16 +402,19 @@ def signup_handler(remote, *args, **kwargs):
         ))
 
 
-def oauth2_handle_error(remote, resp, error_code, error_uri,
-                        error_description):
+def oauth2_handle_error(remote, resp, error_code, error_uri, error_description):
     """Handle errors during exchange of one-time code for an access tokens."""
-    remote_app_config = current_app.config['OAUTHCLIENT_REST_REMOTE_APPS'][
-        remote.name]
-    return response_handler(
+    error_handler = response_handler
+    url = error_uri
+    if not remote or not hasattr(remote, "name"):
+        error_handler = default_response_handler
+    else:
+        remote_app_config = current_app.config["OAUTHCLIENT_REST_REMOTE_APPS"][
+            remote.name
+        ]
+        url = remote_app_config["error_redirect_url"]
+    return error_handler(
         remote,
-        remote_app_config['error_redirect_url'],
-        payload=dict(
-            message="Authorization with remote service failed.",
-            code=400
-        )
+        url,
+        payload=dict(message="Authorization with remote service failed.", code=400),
     )

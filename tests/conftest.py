@@ -139,7 +139,7 @@ def _init_app(app_):
 def _init_app_rest(app_):
     """Init OAuth rest app."""
     FlaskOAuth(app_)
-    InvenioAccountsRest(app_)
+    InvenioAccountsREST(app_)
     InvenioOAuthClientREST(app_)
     app_.register_blueprint(blueprint_client)
     return app_

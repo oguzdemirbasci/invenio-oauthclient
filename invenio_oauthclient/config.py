@@ -200,7 +200,7 @@ setting ``remote_app`` in your remote application configuration.
 OAUTHCLIENT_REMOTE_APPS = {}
 """Configuration of remote applications."""
 
-OAUTHCLIENT_SESSION_KEY_PREFIX = 'oauth_token'
+OAUTHCLIENT_SESSION_KEY_PREFIX = "oauth_token"
 """Session key prefix used when storing the access token for a remote app."""
 
 OAUTHCLIENT_STATE_EXPIRES = 300
@@ -209,8 +209,14 @@ OAUTHCLIENT_STATE_EXPIRES = 300
 OAUTHCLIENT_STATE_ENABLED = True
 """Internal variable used to disable state validation during tests."""
 
-OAUTHCLIENT_SIGNUP_TEMPLATE = 'invenio_oauthclient/signup.html'
+OAUTHCLIENT_SIGNUP_TEMPLATE = "invenio_oauthclient/signup.html"
 """Template for the signup page."""
 
 OAUTHCLIENT_REST_REMOTE_APPS = {}
 """Configuration of remote rest applications."""
+
+OAUTHCLIENT_REST_DEFAULT_RESPONSE_HANDLER = None
+"""Default REST response handler"""
+
+OAUTHCLIENT_REST_DEFAULT_ERROR_HANDLER = None
+"""Default REST error handler"""

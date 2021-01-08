@@ -27,7 +27,7 @@ tests_require = [
     'pydocstyle>=1.0.0',
     'pytest-cov>=1.8.0',
     'pytest-pep8>=1.0.6',
-    'pytest>=2.8.3',
+    'pytest>=4.0,<5.4.4',
     'simplejson>=3.8',
 ]
 
@@ -79,6 +79,8 @@ install_requires = [
     'six>=1.9',
     'sqlalchemy-utils>=0.32.0',
     'uritools>=1.0.1',
+    'Click==5.1',
+    'celery==4.4',
 ]
 
 packages = find_packages()
